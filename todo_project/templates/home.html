@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Home - TODO App{% endblock %}
+
+{% block content %}
+<h2>Create TODO</h2>
+<form method="post">
+    {% csrf_token %}
+    <input type="text" name="title" placeholder="Title" required>
+    <textarea name="description" placeholder="Description (optional)"></textarea>
+    <input type="date" name="due_date">
+    <button type="submit" name="create">Add</button>
+</form>
+
+<h2>TODO List</h2>
+<ul>
+    {% for todo in todos %}
+        <li>
+            <span {% if todo.is_done %}style="text-decoration: line-through; color:#888"{% endif %}>
+                {{ todo.title }}
+                {% if todo.due_date %} (Due: {{ todo.due_date }}){% endif %}
+            </span>
+            <a href="{% url 'toggle_done' todo.pk %}">
+                {% if todo.is_done %}Mark as not done{% else %}Mark as done{% endif %}
+            </a>
+            <a href="{% url 'delete_todo' todo.pk %}">Delete</a>
+        </li>
+    {% empty %}
+        <li>No TODOs yet.</li>
+    {% endfor %}
+</ul>
+{% endblock %}
