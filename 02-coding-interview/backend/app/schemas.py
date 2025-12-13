@@ -11,6 +11,12 @@ class Room(BaseModel):
     participants: int
 
 
+class Participant(BaseModel):
+    id: str
+    name: str | None = None
+    joinedAt: int
+
+
 class CreateRoomRequest(BaseModel):
     language: Literal["javascript", "python"] | None = None
 

@@ -74,3 +74,32 @@ def test_websocket_broadcast():
         assert msg['type'] == 'ROOM_UPDATE'
         assert msg['roomId'] == rid
         assert msg['room']['code'] == new_code
+
+
+def test_participants_endpoints():
+    # create room
+    resp = client.post('/rooms', json={})
+    assert resp.status_code == 201
+    room = resp.json()
+    rid = room['id']
+
+    # add participant with name
+    p = client.post(f'/rooms/{rid}/participants', json={'name': 'Alice'})
+    assert p.status_code == 201
+    participant = p.json()
+    assert participant['name'] == 'Alice'
+
+    # list participants
+    lst = client.get(f'/rooms/{rid}/participants')
+    assert lst.status_code == 200
+    parts = lst.json()
+    assert any(x['id'] == participant['id'] for x in parts)
+
+    # delete participant
+    d = client.delete(f"/rooms/{rid}/participants/{participant['id']}")
+    assert d.status_code == 204
+
+    # ensure removed
+    lst2 = client.get(f'/rooms/{rid}/participants')
+    assert lst2.status_code == 200
+    assert all(x['id'] != participant['id'] for x in lst2.json())

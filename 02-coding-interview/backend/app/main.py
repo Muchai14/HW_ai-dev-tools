@@ -8,6 +8,7 @@ from .schemas import (
     UpdateCodeRequest,
     UpdateLanguageRequest,
     ErrorResponse,
+    Participant,
 )
 from .broadcaster import broadcaster
 
@@ -37,6 +38,39 @@ async def join_room(room_id: str):
     # broadcast update
     await broadcaster.broadcast(room.id, {"type": "ROOM_UPDATE", "roomId": room.id, "room": room.model_dump()})
     return room
+
+
+@app.post("/rooms/{room_id}/participants", status_code=201)
+async def create_participant(room_id: str, payload: dict | None = None):
+    # payload may contain {"name": "Alice"}
+    name = payload.get("name") if payload else None
+    part = db.add_participant(room_id, name)
+    if not part:
+        raise HTTPException(status_code=404, detail="Room not found")
+    # broadcast updated room state as well
+    room = db.get_room(room_id)
+    if room:
+        await broadcaster.broadcast(room.id, {"type": "ROOM_UPDATE", "roomId": room.id, "room": room.model_dump()})
+    return part
+
+
+@app.get("/rooms/{room_id}/participants")
+async def get_participants(room_id: str):
+    parts = db.list_participants(room_id)
+    if parts is None:
+        raise HTTPException(status_code=404, detail="Room not found")
+    return parts
+
+
+@app.delete("/rooms/{room_id}/participants/{participant_id}", status_code=204)
+async def delete_participant(room_id: str, participant_id: str):
+    ok = db.remove_participant(room_id, participant_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Participant or room not found")
+    room = db.get_room(room_id)
+    if room:
+        await broadcaster.broadcast(room.id, {"type": "ROOM_UPDATE", "roomId": room.id, "room": room.model_dump()})
+    return JSONResponse(status_code=204, content=None)
 
 
 @app.get("/rooms/{room_id}", response_model=Room)
