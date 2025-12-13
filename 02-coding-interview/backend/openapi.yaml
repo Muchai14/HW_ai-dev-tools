@@ -1,0 +1,238 @@
+openapi: 3.1.0
+info:
+  title: Coding Interview API
+  version: 1.0.0
+  description: |
+    API specification for the Coding Interview frontend. This spec models the
+    minimal REST surface required by the client (`frontend/src/services/api.ts`) and
+    documents a WebSocket endpoint that can be used for real-time room updates.
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+paths:
+  /rooms:
+    post:
+      summary: Create a new interview room
+      description: Create a room with an initial language and default starter code.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoomRequest'
+      responses:
+        '201':
+          description: Room created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /rooms/{roomId}/join:
+    post:
+      summary: Join an existing room
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Room identifier (case-insensitive)
+      responses:
+        '200':
+          description: Joined room
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '404':
+          description: Room not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /rooms/{roomId}:
+    get:
+      summary: Get room details
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Room found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '404':
+          description: Room not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /rooms/{roomId}/code:
+    patch:
+      summary: Update room code
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCodeRequest'
+      responses:
+        '200':
+          description: Updated room
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '404':
+          description: Room not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /rooms/{roomId}/language:
+    patch:
+      summary: Update room language
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLanguageRequest'
+      responses:
+        '200':
+          description: Updated room
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '404':
+          description: Room not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /rooms/{roomId}/leave:
+    post:
+      summary: Leave a room (decrement participants)
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Left room (no content)
+        '404':
+          description: Room not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /ws:
+    get:
+      summary: WebSocket endpoint for real-time updates
+      description: |
+        Upgrade to a WebSocket connection to receive real-time room updates.
+        Messages sent from server will have a structure like:
+        ```json
+        {
+          "type": "ROOM_UPDATE",
+          "roomId": "ABC123",
+          "room": { /* Room object */ }
+        }
+        ```
+      responses:
+        '101':
+          description: WebSocket Upgrade
+components:
+  schemas:
+    Room:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Uppercase room identifier (6 chars)
+        code:
+          type: string
+          description: The current source code inside the room
+        language:
+          type: string
+          enum:
+            - javascript
+            - python
+        createdAt:
+          type: integer
+          description: Unix epoch milliseconds when room was created
+        participants:
+          type: integer
+          description: Number of participants currently in the room
+      required:
+        - id
+        - code
+        - language
+        - createdAt
+        - participants
+    CreateRoomRequest:
+      type: object
+      properties:
+        language:
+          type: string
+          enum:
+            - javascript
+            - python
+      description: Optional language for the initial code; defaults to "javascript" if omitted.
+    UpdateCodeRequest:
+      type: object
+      properties:
+        code:
+          type: string
+      required:
+        - code
+    UpdateLanguageRequest:
+      type: object
+      properties:
+        language:
+          type: string
+          enum:
+            - javascript
+            - python
+      required:
+        - language
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+# Notes
+# - The frontend currently relies on a BroadcastChannel for multi-tab sync. When implementing
+#   the backend you can either keep BroadcastChannel for local persistence or implement
+#   server-side WebSockets at `/ws` to broadcast ROOM_UPDATE messages to connected clients.
+# - The server should normalize room IDs to uppercase (client uses `roomId.toUpperCase()` when reading).
+# - Timestamps use Unix epoch milliseconds in `createdAt`.
