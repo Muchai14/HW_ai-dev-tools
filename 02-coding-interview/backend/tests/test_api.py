@@ -70,10 +70,15 @@ def test_websocket_broadcast():
         r = client.patch(f'/rooms/{rid}/code', json={'code': new_code})
         assert r.status_code == 200
 
-        msg = ws.receive_json()
-        assert msg['type'] == 'ROOM_UPDATE'
-        assert msg['roomId'] == rid
-        assert msg['room']['code'] == new_code
+        # the server may send an initial ROOM_UPDATE on subscribe; read messages until we see the update with the new code
+        found = False
+        for _ in range(5):
+            msg = ws.receive_json()
+            if msg.get('type') == 'ROOM_UPDATE' and msg.get('roomId') == rid:
+                if msg['room'].get('code') == new_code:
+                    found = True
+                    break
+        assert found, f"Did not receive ROOM_UPDATE with updated code for room {rid}"
 
 
 def test_participants_endpoints():

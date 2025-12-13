@@ -5,6 +5,8 @@ import { LanguageSelector } from './LanguageSelector';
 import { ParticipantsList } from './ParticipantsList';
 import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useEffect, useState } from 'react';
+import { onWebSocketStatusChange, WSStatus } from '@/services/api';
 
 interface RoomHeaderProps {
   roomId: string;
@@ -25,6 +27,12 @@ export const RoomHeader = ({
   onLanguageChange,
   onRun,
 }: RoomHeaderProps) => {
+  const [wsStatus, setWsStatus] = useState<WSStatus>('disconnected');
+
+  useEffect(() => {
+    const unsub = onWebSocketStatusChange((s) => setWsStatus(s));
+    return () => unsub();
+  }, []);
   const copyRoomLink = () => {
     const url = `${window.location.origin}/room/${roomId}`;
     navigator.clipboard.writeText(url);
@@ -68,7 +76,14 @@ export const RoomHeader = ({
 
       <div className="flex items-center gap-2 md:gap-3">
         <LanguageSelector language={language} onChange={onLanguageChange} />
-        
+        <div className="flex items-center gap-3 mr-2">
+          <div
+            title={wsStatus === 'connected' ? 'Live updates: connected' : wsStatus === 'connecting' ? 'Live updates: connecting' : 'Live updates: disconnected'}
+            className={`h-3 w-3 rounded-full ${wsStatus === 'connected' ? 'bg-green-400' : wsStatus === 'connecting' ? 'bg-yellow-400' : 'bg-gray-400'}`}
+          />
+          <span className="text-xs text-muted-foreground hidden sm:inline">{wsStatus === 'connected' ? 'Live' : wsStatus === 'connecting' ? 'Connecting' : 'Offline'}</span>
+        </div>
+
         <Button 
           onClick={onRun} 
           disabled={isRunning || (language === 'python' && isPyodideLoading)}

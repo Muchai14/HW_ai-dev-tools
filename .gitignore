@@ -1,0 +1,46 @@
+# General
+.DS_Store
+.env
+.env.local
+
+# Node
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun.lockb
+
+# Frontend build outputs
+**/dist/
+frontend/dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.db
+backend/backend_dev.db
+02-coding-interview/backend/backend_dev.db
+.venv/
+venv/
+env/
+
+# Logs and runtime files
+*.log
+uvicorn.log
+uvicorn.pid
+02-coding-interview/uvicorn.pid
+02-coding-interview/uvicorn.log
+
+# Tests / coverage
+.pytest_cache/
+coverage/
+htmlcov/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+Thumbs.db

@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, status, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from . import db
 from .schemas import (
@@ -21,6 +22,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve SPA static files if present in app/static
+try:
+    app.mount("/", StaticFiles(directory="app/static", html=True), name="static")
+except Exception:
+    # ignore if StaticFiles cannot be mounted in some test environments
+    pass
+
+
+@app.on_event("startup")
+async def startup_event():
+    # ensure database tables exist when the app starts (tests rely on this)
+    try:
+        db.init_db()
+    except Exception:
+        # avoid crashing startup in case of DB issues; tests will show errors
+        pass
 
 
 @app.post("/rooms", response_model=Room, status_code=201)
@@ -124,6 +142,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 if room_id:
                     await broadcaster.subscribe(websocket, room_id)
                     subscriptions.add(room_id.upper())
+                    # send current room state immediately to the new subscriber
+                    try:
+                        current_room = db.get_room(room_id)
+                        if current_room:
+                            await websocket.send_json({"type": "ROOM_UPDATE", "roomId": current_room.id, "room": current_room.model_dump()})
+                    except Exception:
+                        # don't let a single failure break the websocket loop
+                        pass
             elif action == 'unsubscribe':
                 room_id = data.get('roomId')
                 if room_id:
@@ -135,3 +161,12 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         # cleanup
         await broadcaster.unsubscribe(websocket)
+
+
+@app.get("/")
+async def read_index():
+    # Fallback root route: serve index.html from static folder when available
+    try:
+        return FileResponse("app/static/index.html")
+    except Exception:
+        raise HTTPException(status_code=404, detail="Index not found")

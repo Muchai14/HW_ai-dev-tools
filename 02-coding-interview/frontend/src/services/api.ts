@@ -39,9 +39,28 @@ const generateRoomId = () => Math.random().toString(36).substring(2, 8).toUpperC
 let ws: WebSocket | null = null;
 let wsHandlers: Record<string, ((room: Room) => void)[]> = {};
 
+// WebSocket connection status handlers
+export type WSStatus = 'connected' | 'connecting' | 'disconnected';
+let wsStatus: WSStatus = WS_BASE ? 'disconnected' : 'disconnected';
+let wsStatusHandlers: ((s: WSStatus) => void)[] = [];
+const setWSStatus = (s: WSStatus) => {
+  wsStatus = s;
+  wsStatusHandlers.forEach(h => {
+    try { h(s); } catch (e) { /* ignore handler errors */ }
+  });
+};
+
+export const onWebSocketStatusChange = (cb: (s: WSStatus) => void) => {
+  wsStatusHandlers.push(cb);
+  // immediately notify current status
+  try { cb(wsStatus); } catch (e) {}
+  return () => { wsStatusHandlers = wsStatusHandlers.filter(x => x !== cb); };
+};
+
 const ensureWebSocket = (roomId?: string) => {
   if (!WS_BASE) return;
   if (!ws || ws.readyState !== WebSocket.OPEN) {
+    setWSStatus('connecting');
     ws = new WebSocket(WS_BASE + '/ws');
     ws.onmessage = (ev) => {
       try {
@@ -54,6 +73,9 @@ const ensureWebSocket = (roomId?: string) => {
         // ignore
       }
     };
+    ws.onopen = () => setWSStatus('connected');
+    ws.onclose = () => setWSStatus('disconnected');
+    ws.onerror = () => setWSStatus('disconnected');
   }
   // if roomId provided, send subscribe after OPEN
   if (roomId && ws) {
