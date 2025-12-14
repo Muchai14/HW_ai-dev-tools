@@ -10,7 +10,7 @@ databases:
     databaseName: coding_interview
 
 services:
-  - type: web_service
+  - type: web
     name: coding-interview-app
     env: docker
     plan: starter

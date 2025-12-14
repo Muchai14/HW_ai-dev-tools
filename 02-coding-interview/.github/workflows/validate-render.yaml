@@ -1,0 +1,29 @@
+name: Validate Render manifest
+
+on:
+  push:
+    paths:
+      - 'render.yaml'
+      - '.github/workflows/validate-render.yaml'
+  pull_request:
+    paths:
+      - 'render.yaml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Validate Render manifest
+        run: |
+          # Use npx so we don't need a global install; this will run on GitHub runners
+          npx --yes @render/cli manifest validate render.yaml
+        shell: bash
+        # If the validation fails, the job will fail
